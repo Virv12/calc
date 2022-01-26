@@ -10,9 +10,15 @@ _start:
 	jne usage
 
 	mov rdi, QWORD [rsp + 8]
+	mov bl, 0
 	call parse_spaces.entry
-	call parse_expr
+	call parse
+	test bl, bl
+	je .format
+	mov rax, rdi
+	sub rax, QWORD [rsp + 8]
 
+.format:
 	mov BYTE [rsp - 1], 10
 	lea rsi, [rsp - 1]
 	mov rcx, 10
@@ -25,6 +31,18 @@ _start:
 	test rax, rax
 	jne .loop
 
+	test bl, bl
+	je .print
+	sub rsi, ERR.len
+	mov rcx, ERR.len
+.copy:
+	sub rcx, 1
+	mov al, BYTE [ERR + rcx]
+	mov BYTE [rsi + rcx], al
+	test rcx, rcx
+	jne .copy
+
+.print:
 	mov rdi, 1
 	mov rdx, rsp
 	sub rdx, rsi
@@ -38,6 +56,15 @@ exit:
 	mov rax, 60
 	syscall
 
+parse:
+	call parse_expr
+	test bl, bl
+	jne .ret
+	cmp BYTE [rdi], 0
+	setne bl
+.ret:
+	ret
+
 parse_expr:
 
 parse_term:
@@ -49,10 +76,11 @@ parse_atom:
 
 	sub dl, '0'
 	cmp dl, 10
-	jl .int
+	jb .int
 
 .error:
-	ud2
+	mov bl, 1
+	ret
 
 .int:
 	movzx rax, dl
@@ -71,6 +99,8 @@ parse_atom:
 .par:
 	call parse_spaces.skip
 	call parse_expr
+	test bl, bl
+	jne .error
 	cmp BYTE [rdi], ')'
 	jne .error
 	jmp parse_spaces.skip
@@ -97,3 +127,6 @@ section .rodata
 
 USAGE: db "Usage: ./main <expr>", 10
 .len:  equ $ - USAGE
+
+ERR:   db "Parse error at "
+.len:  equ $ - ERR
