@@ -66,8 +66,79 @@ parse:
 	ret
 
 parse_expr:
+	call parse_term
+	test bl, bl
+	jne .error
+.loop:
+	mov dl, BYTE [rdi]
+	cmp dl, '+'
+	je .add
+	cmp dl, '-'
+	je .sub
+	ret
+
+.add:
+	call parse_spaces.skip
+	push rax
+	call parse_term
+	pop rdx
+	test bl, bl
+	jne .error
+	add rax, rdx
+	jmp .loop
+
+.sub:
+	call parse_spaces.skip
+	push rax
+	call parse_term
+	pop rdx
+	test bl, bl
+	jne .error
+	sub rdx, rax
+	mov rax, rdx
+	jmp .loop
+
+.error:
+	mov bl, 1
+	ret
 
 parse_term:
+	call parse_atom
+	test bl, bl
+	jne .error
+
+.loop:
+	mov dl, BYTE [rdi]
+	cmp dl, '*'
+	je .mul
+	cmp dl, '/'
+	je .div
+	ret
+
+.mul:
+	call parse_spaces.skip
+	push rax
+	call parse_atom
+	pop rdx
+	test bl, bl
+	jne .error
+	mul rdx
+	jmp .loop
+
+.div:
+	call parse_spaces.skip
+	push rax
+	call parse_atom
+	pop rcx
+	test bl, bl
+	jne .error
+	mov rdx, 0
+	div rcx
+	jmp .loop
+
+.error:
+	mov bl, 1
+	ret
 
 parse_atom:
 	mov dl, BYTE [rdi]
