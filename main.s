@@ -44,9 +44,17 @@ parse_term:
 
 parse_atom:
 	mov dl, BYTE [rdi]
+	cmp dl, '('
+	je .par
+
 	sub dl, '0'
 	cmp dl, 10
-	jae .error
+	jl .int
+
+.error:
+	ud2
+
+.int:
 	movzx rax, dl
 	add rdi, 1
 .loop:
@@ -60,15 +68,19 @@ parse_atom:
 	add rdi, 1
 	jmp .loop
 
-.error:
-	ud2
+.par:
+	call parse_spaces.skip
+	call parse_expr
+	cmp BYTE [rdi], ')'
+	jne .error
+	jmp parse_spaces.skip
 
 parse_spaces:
-.loop:
+.skip:
 	add rdi, 1
 .entry:
 	cmp BYTE [rdi], ' '
-	je .loop
+	je .skip
 	ret
 
 usage:
